@@ -174,6 +174,7 @@ stdenv.mkDerivation rec {
     "-exceptions" "-xmlpatterns"
 
     "-make" "libs" "-make" "tools" "-make" "translations"
+    "-make" "webkit"
     "-no-phonon" "-webkit" "-no-multimedia" "-audio-backend"
   ]) ++ [
     "-${if demos then "" else "no"}make" "demos"
