@@ -22,7 +22,7 @@ in
         default = { };
         example = {
           PORT = "4000";
-          NODE_EXTRA_CA_CERTS = "/etc/ssl/certs/ca-certificates.crt";
+          NODE_EXTRA_CA_CERTS = literalExpression "config.security.pki.caBundle";
         };
         description = ''
           Additional configuration for Uptime Kuma, see
