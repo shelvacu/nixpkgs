@@ -19,7 +19,7 @@ let
     "opcache.memory_consumption" = "128";
     "opcache.revalidate_freq" = "1";
     "opcache.fast_shutdown" = "1";
-    "openssl.cafile" = "/etc/ssl/certs/ca-certificates.crt";
+    "openssl.cafile" = config.security.pki.caBundle;
     catch_workers_output = "yes";
   };
 

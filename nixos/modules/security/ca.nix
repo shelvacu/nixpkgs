@@ -3,7 +3,6 @@
 with lib;
 
 let
-
   cfg = config.security.pki;
 
   cacertPackage = pkgs.cacert.override {
@@ -85,6 +84,14 @@ in
       '';
     };
 
+    security.pki.caBundle = mkOption {
+      type = types.path;
+      default = caBundle;
+      readOnly = true;
+      description = ''
+        (Read-only) the path to the final bundle of certificate authorities as a single file.
+      '';
+    };
   };
 
   config = mkIf cfg.installCACerts {
