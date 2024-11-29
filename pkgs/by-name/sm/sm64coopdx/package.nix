@@ -37,6 +37,7 @@ let
       region = "us";
       showRegionMessage = false;
     }).romPath;
+  plat = stdenv.targetPlatform;
 in
 # note: there is a generic builder in pkgs/games/sm64ex/generic.nix that is meant to help build sm64ex and its forks; however sm64coopdx has departed significantly enough in its build that it doesn't make sense to use that other than the baseRom derivation
 stdenv.mkDerivation (finalAttrs: {
@@ -68,12 +69,7 @@ stdenv.mkDerivation (finalAttrs: {
   enableParallelBuilding = true;
 
   makeFlags = let
-    plat = stdenv.targetPlatform;
     en = flag: if flag then "1" else "0";
-    bits = if plat.is32bit then "32" else
-      if plat.is64bit then "64" else
-      "0"
-    ;
   in [
     # "TARGET_ARCH=${plat.gcc.arch or plat.linuxArch}"
     # "TARGET_BITS=${bits}"
@@ -88,8 +84,6 @@ stdenv.mkDerivation (finalAttrs: {
     "COOPNET_PATH=${coopnet}"
     "LUA_PATH=${lua}"
   ] ++ extraMakeFlags;
-
-  env.NIX_DEBUG = "5";
 
   preBuild = ''
     # the baserom is needed both at build time and run time
@@ -107,7 +101,7 @@ stdenv.mkDerivation (finalAttrs: {
     local built=$PWD/build/us_pc
     local share=$out/share/sm64coopdx
     mkdir -p $share
-    cp $built/sm64coopdx $share/sm64coopdx
+    cp $built/sm64coopdx${lib.optionalString plat.isAarch ".arm"} $share/sm64coopdx
     cp -r $built/{dynos,lang,mods,palettes} $share
     # the baserom is needed both at build time and run time
     ln -s ${baserom} $share/baserom.us.z64
