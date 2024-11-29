@@ -10,13 +10,18 @@
   SDL2,
   stdenv,
   zlib,
+  lua53Packages,
+  coopnet,
 
   sm64baserom,
   enableCoopNet ? true,
-  enableDiscord ? true,
+  enableDiscord ? false,
   enableTextureFix ? true,
+  enableHandheld ? false,
+  extraMakeFlags ? [],
 }:
 let
+  lua = lua53Packages.lua;
   libc_hack = writeTextFile {
     name = "libc-hack";
     # https://stackoverflow.com/questions/21768542/libc-h-no-such-file-or-directory-when-compiling-nanomsg-pipeline-sample
@@ -45,6 +50,8 @@ stdenv.mkDerivation (finalAttrs: {
     hash = "sha256-v50C87/NN75owxtLL4vm8TLZha7U8FkefPhpO6iXYGU=";
   };
 
+  patches = [ ./unvendor.patch ];
+
   nativeBuildInputs = [ makeWrapper ];
 
   buildInputs = [
@@ -54,16 +61,35 @@ stdenv.mkDerivation (finalAttrs: {
     python3
     SDL2
     zlib
+    lua
+    coopnet
   ];
 
   enableParallelBuilding = true;
 
-  makeFlags = [
+  makeFlags = let
+    plat = stdenv.targetPlatform;
+    en = flag: if flag then "1" else "0";
+    bits = if plat.is32bit then "32" else
+      if plat.is64bit then "64" else
+      "0"
+    ;
+  in [
+    # "TARGET_ARCH=${plat.gcc.arch or plat.linuxArch}"
+    # "TARGET_BITS=${bits}"
+    "TARGET_RPI=${en (plat.isAarch && plat.isLinux)}"
+    "OSX_BUILD=${en plat.isDarwin}"
     "BREW_PREFIX=/not-exist"
-    "DISCORD_SDK=${if enableDiscord then "1" else "0"}"
-    "TEXTURE_FIX=${if enableTextureFix then "1" else "0"}"
-    "COOPNET=${if enableCoopNet then "1" else "0"}"
-  ];
+    "DISCORD_SDK=${en enableDiscord}"
+    "TEXTURE_FIX=${en enableTextureFix}"
+    "COOPNET=${en enableCoopNet}"
+    "HANDHELD=${en enableHandheld}"
+    # "LDFLAGS=${lib.escapeShellArg "-L${lua}/lib -l lua53 -L${coopnet}/lib -l coopnet"}"
+    "COOPNET_PATH=${coopnet}"
+    "LUA_PATH=${lua}"
+  ] ++ extraMakeFlags;
+
+  env.NIX_DEBUG = "5";
 
   preBuild = ''
     # the baserom is needed both at build time and run time
@@ -71,6 +97,8 @@ stdenv.mkDerivation (finalAttrs: {
     # remove -march flags, stdenv manages them
     substituteInPlace Makefile \
       --replace-fail ' -march=$(TARGET_ARCH)' ""
+    # remove vendored (prebuilt) dependencies so they're not accidentally used
+    rm -r lib/{coopnet,discord,discordsdk,lua}
   '';
 
   installPhase = ''
@@ -110,7 +138,7 @@ stdenv.mkDerivation (finalAttrs: {
       - `enableCoopNet`: (default: `true`) whether to enable Co-op Net integration, a server made specifically for multiplayer sm64
     '';
     license = lib.licenses.unfree;
-    platforms = lib.platforms.x86;
+    # platforms = lib.platforms.x86;
     maintainers = [ lib.maintainers.shelvacu ];
     mainProgram = "sm64coopdx";
     homepage = "https://sm64coopdx.com/";

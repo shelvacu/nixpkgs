@@ -1,0 +1,94 @@
+diff --git a/Makefile b/Makefile
+index 7e942ece..0ef76a4e 100644
+--- a/Makefile
++++ b/Makefile
+@@ -504,6 +504,18 @@ BIN_DIRS := bin bin/$(VERSION)
+ # PC files
+ SRC_DIRS += src/pc src/pc/gfx src/pc/audio src/pc/controller src/pc/fs src/pc/fs/packtypes src/pc/mods src/pc/dev src/pc/network src/pc/network/packets src/pc/network/socket src/pc/network/coopnet src/pc/utils src/pc/utils/miniz src/pc/djui src/pc/lua src/pc/lua/utils src/pc/os
+ 
++# Network/Discord (ugh, needs cleanup)
++ifeq ($(WINDOWS_BUILD),1)
++  LDFLAGS += -L"ws2_32" -lwsock32
++  ifeq ($(DISCORD_SDK),1)
++    LDFLAGS += -Wl,-Bdynamic -L./lib/discordsdk/ -ldiscord_game_sdk -Wl,-Bstatic
++  endif
++else
++  ifeq ($(DISCORD_SDK),1)
++    LDFLAGS += -ldiscord_game_sdk -Wl,-rpath . -Wl,-rpath lib/discordsdk
++  endif
++endif
++
+ ifeq ($(DISCORD_SDK),1)
+   SRC_DIRS += src/pc/discord
+ endif
+@@ -922,67 +934,14 @@ else
+ endif
+ 
+ # Lua
+-ifeq ($(WINDOWS_BUILD),1)
+-  ifeq ($(TARGET_BITS), 32)
+-    LDFLAGS += -Llib/lua/win32 -l:liblua53.a
+-  else
+-    LDFLAGS += -Llib/lua/win64 -l:liblua53.a
+-  endif
+-else ifeq ($(OSX_BUILD),1)
+-  ifeq ($(shell uname -m),arm64)
+-    LDFLAGS += -L./lib/lua/mac_arm/ -l lua53
+-  else
+-    LDFLAGS += -L./lib/lua/mac_intel/ -l lua53
+-  endif
+-else ifeq ($(TARGET_RPI),1)
+-	ifneq (,$(findstring aarch64,$(machine)))
+-    LDFLAGS += -Llib/lua/linux -l:liblua53-arm64.a
+-  else
+-    LDFLAGS += -Llib/lua/linux -l:liblua53-arm.a
+-  endif
+-else
+-  LDFLAGS += -Llib/lua/linux -l:liblua53.a -ldl
+-endif
++LDFLAGS += -L$(LUA_PATH)/lib -llua
+ 
+ # CoopNet
+ COOPNET_LIBS :=
+ ifeq ($(COOPNET),1)
++  LDFLAGS += -L$(COOPNET_PATH)/lib -lcoopnet
+   ifeq ($(WINDOWS_BUILD),1)
+-    ifeq ($(TARGET_BITS), 32)
+-      LDFLAGS += -Llib/coopnet/win32 -l:libcoopnet.a -l:libjuice.a -lbcrypt -lws2_32 -liphlpapi
+-    else
+-      LDFLAGS += -Llib/coopnet/win64 -l:libcoopnet.a -l:libjuice.a -lbcrypt -lws2_32 -liphlpapi
+-    endif
+-  else ifeq ($(OSX_BUILD),1)
+-    ifeq ($(shell uname -m),arm64)
+-      LDFLAGS += -Wl,-rpath,@loader_path -L./lib/coopnet/mac_arm/ -l coopnet
+-      COOPNET_LIBS += ./lib/coopnet/mac_arm/libcoopnet.dylib
+-      COOPNET_LIBS += ./lib/coopnet/mac_arm/libjuice.1.2.2.dylib
+-    else
+-      LDFLAGS += -Wl,-rpath,@loader_path -L./lib/coopnet/mac_intel/ -l coopnet
+-      COOPNET_LIBS += ./lib/coopnet/mac_intel/libcoopnet.dylib
+-      COOPNET_LIBS += ./lib/coopnet/mac_intel/libjuice.1.2.2.dylib
+-    endif
+-  else ifeq ($(TARGET_RPI),1)
+-    ifneq (,$(findstring aarch64,$(machine)))
+-      LDFLAGS += -Llib/coopnet/linux -l:libcoopnet-arm64.a -l:libjuice.a
+-    else
+-      LDFLAGS += -Llib/coopnet/linux -l:libcoopnet-arm.a -l:libjuice.a
+-    endif
+-  else
+-    LDFLAGS += -Llib/coopnet/linux -l:libcoopnet.a -l:libjuice.a
+-  endif
+-endif
+-
+-# Network/Discord (ugh, needs cleanup)
+-ifeq ($(WINDOWS_BUILD),1)
+-  LDFLAGS += -L"ws2_32" -lwsock32
+-  ifeq ($(DISCORD_SDK),1)
+-    LDFLAGS += -Wl,-Bdynamic -L./lib/discordsdk/ -ldiscord_game_sdk -Wl,-Bstatic
+-  endif
+-else
+-  ifeq ($(DISCORD_SDK),1)
+-    LDFLAGS += -ldiscord_game_sdk -Wl,-rpath . -Wl,-rpath lib/discordsdk
++    LDFLAGS += -lbcrypt -lws2_32 -liphlpapi
+   endif
+ endif
+ 

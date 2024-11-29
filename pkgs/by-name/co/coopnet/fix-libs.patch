@@ -1,0 +1,13 @@
+diff --git a/Makefile b/Makefile
+index 5f77e95..126c83b 100644
+--- a/Makefile
++++ b/Makefile
+@@ -24,7 +24,6 @@ SERVER_OBJ = $(patsubst %.cpp, bin/o/%.o, $(SERVER_SRC))
+ 
+ BIN_DIR = bin
+ LIB_DIR = lib
+-LIBS = -l:libjuice.a
+ DYNLIB_NAME = libcoopnet.so
+ 
+ ifeq ($(OS),Windows_NT)
+
