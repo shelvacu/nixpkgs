@@ -1,0 +1,14 @@
+diff --git i/CMakeLists.txt w/CMakeLists.txt
+index 09f1368b1b..3aef9bad52 100644
+--- i/CMakeLists.txt
++++ w/CMakeLists.txt
+@@ -77,8 +77,7 @@ endif()
+ if (USE_MIMALLOC)
+   ExternalProject_add(mimalloc
+     PREFIX mimalloc
+-    GIT_REPOSITORY https://github.com/microsoft/mimalloc
+-    GIT_TAG v2.2.3
++    DOWNLOAD_COMMAND true
+     # just download, we compile it as part of each stage as it is small
+     CONFIGURE_COMMAND ""
+     BUILD_COMMAND ""
