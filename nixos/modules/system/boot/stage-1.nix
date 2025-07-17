@@ -794,7 +794,7 @@ in
       (isYes "BLK_DEV_INITRD")
     ];
 
-    boot.initrd.supportedFilesystems = map (fs: fs.fsType) fileSystems;
+    boot.initrd.supportedFilesystems = utils.fsExtractFsTypes fileSystems;
   };
 
   imports = [

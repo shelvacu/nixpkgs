@@ -267,6 +267,52 @@ let
     makeFstabEntries (filter utils.fsNeededForBoot fileSystems) { }
   );
 
+  possibleFilesystems = [
+    # "9p" #not read anywhere
+    "apfs"
+    "bcachefs"
+    "bindfs-fuse"
+    "btrfs"
+    "cifs"
+    "ecryptfs"
+    "erofs"
+    "exfat"
+    "ext4"
+    "f2fs"
+    "glusterfs"
+    "jfs"
+    "nfs"
+    "ntfs"
+    # "pvfs" #not read anywhere??
+    "reiserfs"
+    "sshfs"
+    "unionfs-fuse"
+    "vboxsf"
+    "vfat"
+    "xfs"
+    "zfs"
+  ];
+
+  supportedFilesystemsType =
+    lib.pipe possibleFilesystems [
+      (map (
+        name:
+        {
+          inherit name;
+          value = mkOption {
+            default = false;
+            type = types.bool;
+            example = true;
+            description = ''Whether to enable support for the `${name}` filesystem'';
+          };
+        }
+      ))
+      builtins.listToAttrs
+      (attrs: { options = attrs; })
+      types.submodule
+    ]
+  ;
+
 in
 
 {
@@ -328,7 +374,7 @@ in
       '';
       type = types.coercedTo (types.listOf types.str) (
         enabled: lib.listToAttrs (map (fs: lib.nameValuePair fs true) enabled)
-      ) (types.attrsOf types.bool);
+      ) supportedFilesystemsType;
       description = ''
         Names of supported filesystem types, or an attribute set of file system types
         and their state. The set form may be used together with `lib.mkForce` to
@@ -435,7 +481,7 @@ in
       attrValues config.boot.specialFileSystems
     )).result;
 
-    boot.supportedFilesystems = map (fs: fs.fsType) fileSystems;
+    boot.supportedFilesystems = utils.fsExtractFsTypes fileSystems;
 
     # Add the mount helpers to the system path so that `mount' can find them.
     system.fsPackages = [ pkgs.dosfstools ];

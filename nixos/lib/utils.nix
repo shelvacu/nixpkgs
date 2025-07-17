@@ -66,6 +66,23 @@ let
     ];
     fsNeededForBoot = fs: fs.neededForBoot || elem fs.mountPoint pathsNeededForBoot;
 
+    # takes an array of fileSystems and returns an array of strings suitable for boot.supportedFilesystems
+    fsExtractFsTypes = fileSystems:
+      lib.pipe fileSystems [
+        (map (fs: fs.fsType))
+        (builtins.filter (
+          fsName:
+          !(builtins.elem fsName [
+            "9p"
+            "auto"
+            "bind"
+            "overlay"
+            "tmpfs"
+          ])
+        ))
+      ]
+    ;
+
     # Check whenever `b` depends on `a` as a fileSystem
     fsBefore =
       a: b:
