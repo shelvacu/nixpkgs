@@ -13,17 +13,73 @@ let
     mkEnableOption
     mkOption
     mkPackageOption
+    boolToString
+    escapeXML
+    nameValuePair
+    optionalString
+    concatMapStringsSep
+    escapeShellArg
+    literalExpression
     ;
   inherit (lib.types)
     bool
     enum
-    int
-    listOf
+    ints
     nullOr
     path
     str
+    submodule
     ;
   cfg = config.services.jellyfin;
+  devicePath =
+    if cfg.hardwareAcceleration.device != null then
+      escapeXML cfg.hardwareAcceleration.device
+    else
+      "";
+  filteredDecodingCodecs = builtins.filter (
+    c: c != "hevcRExt10bit" && c != "hevcRExt12bit" && cfg.transcoding.hardwareDecodingCodecs.${c}
+  ) (builtins.attrNames cfg.transcoding.hardwareDecodingCodecs);
+  encodingXmlText = ''
+    <?xml version="1.0" encoding="utf-8"?>
+    <EncodingOptions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+      <HardwareAccelerationType>${cfg.hardwareAcceleration.type}</HardwareAccelerationType>
+      ${optionalString (
+        cfg.hardwareAcceleration.type == "vaapi" && devicePath != ""
+      ) "<VaapiDevice>${devicePath}</VaapiDevice>"}
+      ${optionalString (
+        cfg.hardwareAcceleration.type == "qsv" && devicePath != ""
+      ) "<OpenclDevice>${devicePath}</OpenclDevice>"}
+      <EncodingThreadCount>${
+        if cfg.transcoding.threadCount != null then toString cfg.transcoding.threadCount else "-1"
+      }</EncodingThreadCount>
+      <EnableThrottling>${boolToString cfg.transcoding.throttleTranscoding}</EnableThrottling>
+      <EnableTonemapping>${boolToString cfg.transcoding.enableToneMapping}</EnableTonemapping>
+      <EnableSubtitleExtraction>${boolToString cfg.transcoding.enableSubtitleExtraction}</EnableSubtitleExtraction>
+      <H264Crf>${toString cfg.transcoding.h264Crf}</H264Crf>
+      <H265Crf>${toString cfg.transcoding.h265Crf}</H265Crf>
+      <EnableHardwareEncoding>${boolToString cfg.transcoding.enableHardwareEncoding}</EnableHardwareEncoding>
+      <AllowHevcEncoding>${boolToString cfg.transcoding.hardwareEncodingCodecs.hevc}</AllowHevcEncoding>
+      <AllowAv1Encoding>${boolToString cfg.transcoding.hardwareEncodingCodecs.av1}</AllowAv1Encoding>
+      <EnableIntelLowPowerH264HwEncoder>${boolToString cfg.transcoding.enableIntelLowPowerEncoding}</EnableIntelLowPowerH264HwEncoder>
+      <EnableIntelLowPowerHevcHwEncoder>${boolToString cfg.transcoding.enableIntelLowPowerEncoding}</EnableIntelLowPowerHevcHwEncoder>
+      <EnableDecodingColorDepth10HevcRext>${boolToString cfg.transcoding.hardwareDecodingCodecs.hevcRExt10bit}</EnableDecodingColorDepth10HevcRext>
+      <EnableDecodingColorDepth12HevcRext>${boolToString cfg.transcoding.hardwareDecodingCodecs.hevcRExt12bit}</EnableDecodingColorDepth12HevcRext>
+      <HardwareDecodingCodecs>
+        ${concatMapStringsSep "\n      " (
+          codec: "<string>${escapeXML codec}</string>"
+        ) filteredDecodingCodecs}
+      </HardwareDecodingCodecs>
+    </EncodingOptions>
+  '';
+  encodingXmlFile = pkgs.writeText "encoding.xml" encodingXmlText;
+  codecListToType =
+    list:
+    submodule { options = builtins.listToAttrs (map (name:
+      nameValuePair name {
+        type = bool;
+        default = false;
+      }
+    ) list); };
 in
 {
   options = {
@@ -56,7 +112,7 @@ in
       configDir = mkOption {
         type = path;
         default = "${cfg.dataDir}/config";
-        defaultText = "\${cfg.dataDir}/config";
+        defaultText = literalExpression ''"''${cfg.dataDir}/config"'';
         description = ''
           Directory containing the server configuration files,
           passed with `--configdir` see [configuration-directory](https://jellyfin.org/docs/general/administration/configuration/#configuration-directory)
@@ -75,7 +131,7 @@ in
       logDir = mkOption {
         type = path;
         default = "${cfg.dataDir}/log";
-        defaultText = "\${cfg.dataDir}/log";
+        defaultText = literalExpression ''"''${cfg.dataDir}/log"'';
         description = ''
           Directory where the Jellyfin logs will be stored,
           passed with `--logdir` see [#log-directory](https://jellyfin.org/docs/general/administration/configuration/#log-directory)
@@ -95,25 +151,27 @@ in
       hardwareAcceleration = {
         enable = mkEnableOption "hardware acceleration for video transcoding";
 
-        devices = mkOption {
-          type = listOf str;
-          default = [ ];
-          example = [ "/dev/dri/renderD128" ];
+        device = mkOption {
+          type = nullOr path;
+          default = if cfg.hardwareAcceleration.type == "vaapi" then "/dev/dri/renderD128" else null;
+          defaultText = literalExpression ''if hardwareAcceleration.type == "qsv" then "/dev/dri/renderD128" else null'';
+          example = "/dev/dri/renderD128";
           description = ''
-            List of device paths to hardware acceleration devices that Jellyfin should
-            have access to. This is useful when transcoding media files.
+            Path to the hardware acceleration device that Jellyfin should use.
           '';
         };
 
         type = mkOption {
+          # see MediaBrowser.Model/Entities/HardwareAccelerationType.cs in jellyfin source
           type = enum [
             "none"
-            "vaapi"
-            "nvenc"
-            "qsv"
-            "videotoolbox"
             "amf"
-            "V4L2"
+            "qsv"
+            "nvenc"
+            "v4l2m2m"
+            "vaapi"
+            # videotoolbox is MacOS-only
+            "rkmpp"
           ];
           default = "none";
           description = ''
@@ -146,7 +204,7 @@ in
 
       transcoding = {
         maxConcurrentStreams = mkOption {
-          type = nullOr (lib.types.ints.positive);
+          type = nullOr (ints.positive);
           default = null;
           example = 2;
           description = ''
@@ -180,7 +238,7 @@ in
         };
 
         threadCount = mkOption {
-          type = nullOr (lib.types.ints.positive);
+          type = nullOr (ints.positive);
           default = null;
           example = 4;
           description = ''
@@ -190,7 +248,7 @@ in
         };
 
         hardwareDecodingCodecs = mkOption {
-          type = listOf (enum [
+          type = codecListToType [
             "h264"
             "hevc"
             "mpeg2"
@@ -201,22 +259,23 @@ in
             "hevc10bit"
             "hevcRExt10bit"
             "hevcRExt12bit"
-          ]);
-          default = [ ];
+          ];
+          default = { };
+          example = { vp9 = true; h264 = true; };
           description = ''
-            List of codecs to enable for hardware decoding.
+            Which codecs to enable for hardware decoding.
           '';
         };
 
         hardwareEncodingCodecs = mkOption {
-          type = listOf (enum [
-            "h264"
+          type = codecListToType [
             "hevc"
             "av1"
-          ]);
-          default = [ ];
+          ];
+          default = { };
+          example = { av1 = true; };
           description = ''
-            List of codecs to enable for hardware encoding.
+            Which codecs to enable for hardware encoding. h264 is always enabled.
           '';
         };
 
@@ -249,7 +308,7 @@ in
         };
 
         h264Crf = mkOption {
-          type = lib.types.ints.between 0 51;
+          type = ints.between 0 51;
           default = 23;
           description = ''
             Constant Rate Factor (CRF) for H.264 encoding. Lower values result in better quality. Range: 0-51.
@@ -257,7 +316,7 @@ in
         };
 
         h265Crf = mkOption {
-          type = lib.types.ints.between 0 51;
+          type = ints.between 0 51;
           default = 28;
           description = ''
             Constant Rate Factor (CRF) for H.265 encoding. Lower values result in better quality. Range: 0-51.
@@ -287,67 +346,10 @@ in
   config = mkIf cfg.enable {
     assertions = [
       {
-        assertion = !cfg.hardwareAcceleration.enable || cfg.hardwareAcceleration.devices != [ ];
-        message = "services.jellyfin.hardwareAcceleration.devices cannot be empty when hardware acceleration is enabled.";
+        assertion = cfg.hardwareAcceleration.enable -> cfg.hardwareAcceleration.device != null;
+        message = "services.jellyfin.hardwareAcceleration.device cannot be null when hardware acceleration is enabled.";
       }
     ];
-
-    # Generate Jellyfin configuration files
-    environment.etc = mkIf cfg.hardwareAcceleration.enable {
-      "jellyfin/encoding.xml" =
-        let
-          boolStr = b: if b then "true" else "false";
-          # XML escape function for special characters
-          escapeXML =
-            str:
-            builtins.replaceStrings [ "&" "<" ">" "\"" "'" ] [ "&amp;" "&lt;" "&gt;" "&quot;" "&apos;" ] str;
-          devicePath =
-            if cfg.hardwareAcceleration.devices != [ ] then
-              escapeXML (lib.head cfg.hardwareAcceleration.devices)
-            else
-              "";
-          filteredDecodingCodecs = builtins.filter (
-            c: c != "hevcRExt10bit" && c != "hevcRExt12bit"
-          ) cfg.transcoding.hardwareDecodingCodecs;
-        in
-        {
-          text = ''
-            <?xml version="1.0" encoding="utf-8"?>
-            <EncodingOptions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
-              <HardwareAccelerationType>${cfg.hardwareAcceleration.type}</HardwareAccelerationType>
-              ${lib.optionalString (
-                cfg.hardwareAcceleration.type == "vaapi" && devicePath != ""
-              ) "<VaapiDevice>${devicePath}</VaapiDevice>"}
-              ${lib.optionalString (
-                cfg.hardwareAcceleration.type == "qsv" && devicePath != ""
-              ) "<OpenclDevice>${devicePath}</OpenclDevice>"}
-              <EncodingThreadCount>${
-                if cfg.transcoding.threadCount != null then toString cfg.transcoding.threadCount else "-1"
-              }</EncodingThreadCount>
-              <EnableThrottling>${boolStr cfg.transcoding.throttleTranscoding}</EnableThrottling>
-              <EnableTonemapping>${boolStr cfg.transcoding.enableToneMapping}</EnableTonemapping>
-              <EnableSubtitleExtraction>${boolStr cfg.transcoding.enableSubtitleExtraction}</EnableSubtitleExtraction>
-              <H264Crf>${toString cfg.transcoding.h264Crf}</H264Crf>
-              <H265Crf>${toString cfg.transcoding.h265Crf}</H265Crf>
-              <EnableHardwareEncoding>${boolStr cfg.transcoding.enableHardwareEncoding}</EnableHardwareEncoding>
-              <AllowHevcEncoding>${boolStr (builtins.elem "hevc" cfg.transcoding.hardwareEncodingCodecs)}</AllowHevcEncoding>
-              <AllowAv1Encoding>${boolStr (builtins.elem "av1" cfg.transcoding.hardwareEncodingCodecs)}</AllowAv1Encoding>
-              <EnableIntelLowPowerH264HwEncoder>${boolStr cfg.transcoding.enableIntelLowPowerEncoding}</EnableIntelLowPowerH264HwEncoder>
-              <EnableIntelLowPowerHevcHwEncoder>${boolStr cfg.transcoding.enableIntelLowPowerEncoding}</EnableIntelLowPowerHevcHwEncoder>
-              <EnableDecodingColorDepth10HevcRext>${boolStr (builtins.elem "hevcRExt10bit" cfg.transcoding.hardwareDecodingCodecs)}</EnableDecodingColorDepth10HevcRext>
-              <EnableDecodingColorDepth12HevcRext>${boolStr (builtins.elem "hevcRExt12bit" cfg.transcoding.hardwareDecodingCodecs)}</EnableDecodingColorDepth12HevcRext>
-              <HardwareDecodingCodecs>
-                ${lib.optionalString (filteredDecodingCodecs != [ ]) (
-                  lib.concatMapStringsSep "\n      " (
-                    codec: "<string>${escapeXML codec}</string>"
-                  ) filteredDecodingCodecs
-                )}
-              </HardwareDecodingCodecs>
-            </EncodingOptions>
-          '';
-          mode = "0644";
-        };
-    };
 
     systemd = {
       tmpfiles.settings.jellyfinDirs = {
@@ -374,6 +376,39 @@ in
         wants = [ "network-online.target" ];
         wantedBy = [ "multi-user.target" ];
 
+        preStart = mkIf cfg.hardwareAcceleration.enable (''
+          configDir=${escapeShellArg cfg.configDir}
+          encodingXml="$configDir/encoding.xml"
+          encodingXmlBackup="$configDir/encoding.xml.backup"
+        '' + (if cfg.forceEncodingConfig then ''
+          if [[ -e $encodingXml ]] && ! [[ -L $encodingXml ]]; then
+            if [[ -e "$encodingXmlBackup" ]]; then
+              echo "FAIL: Going to backup $encodingXml as $encodingXmlBackup, but $encodingXmlBackup already exists!" >&2
+              exit 1
+            fi
+            mv --update=none-fail -T "$encodingXml" "$encodingXmlBackup"
+          fi
+          if [[ -L $encodingXml ]]; then
+            rm "$encodingXml"
+          fi
+          # ln doesn't clobber by default
+          ln -s -T ${encodingXmlFile} "$encodingXml"
+        '' else ''
+          if [[ -e $encodingXml ]]; then
+            # this intentionally removes trailing newlines
+            currentText="$(<"$encodingXml")"
+            configuredText="$(<${encodingXmlFile})"
+            if [[ $currentText != "$configuredText" ]]; then
+              echo "WARN: $encodingXml already exists and is different from the configured settings. transcoding options NOT applied." >&2
+              echo "WARN: Set config.services.jellyfin.forceEncodingConfig = true to override." >&2
+            fi
+          else
+            cp --update=none-fail -T ${encodingXmlFile} "$encodingXml"
+          fi
+        ''));
+
+        enableStrictShellChecks = true;
+
         # This is mostly follows: https://github.com/jellyfin/jellyfin/blob/master/fedora/jellyfin.service
         # Upstream also disable some hardenings when running in LXC, we do the same with the isContainer option
         serviceConfig = {
@@ -383,31 +418,6 @@ in
           UMask = "0077";
           WorkingDirectory = cfg.dataDir;
           ExecStart = "${getExe cfg.package} --datadir '${cfg.dataDir}' --configdir '${cfg.configDir}' --cachedir '${cfg.cacheDir}' --logdir '${cfg.logDir}'";
-          ExecStartPre = lib.optionals cfg.hardwareAcceleration.enable [
-            (
-              let
-                copyEncodingConfig =
-                  if cfg.forceEncodingConfig then
-                    # Create a backup of the existing encoding.xml (if it exists) before overwriting
-                    pkgs.writeShellScript "jellyfin-copy-encoding-config" ''
-                      if [ -f "${cfg.configDir}/encoding.xml" ]; then
-                        ${pkgs.coreutils}/bin/cp "${cfg.configDir}/encoding.xml" "${cfg.configDir}/encoding.xml.backup"
-                      fi
-                      ${pkgs.coreutils}/bin/cp /etc/jellyfin/encoding.xml "${cfg.configDir}/encoding.xml"
-                      ${pkgs.coreutils}/bin/chown ${cfg.user}:${cfg.group} "${cfg.configDir}/encoding.xml"
-                    ''
-                  else
-                    # Only copy if encoding.xml does not already exist
-                    pkgs.writeShellScript "jellyfin-copy-encoding-config" ''
-                      if [ ! -f "${cfg.configDir}/encoding.xml" ]; then
-                        ${pkgs.coreutils}/bin/cp /etc/jellyfin/encoding.xml "${cfg.configDir}/encoding.xml"
-                        ${pkgs.coreutils}/bin/chown ${cfg.user}:${cfg.group} "${cfg.configDir}/encoding.xml"
-                      fi
-                    '';
-              in
-              "+${copyEncodingConfig}"
-            )
-          ];
           Restart = "on-failure";
           TimeoutSec = 15;
           SuccessExitStatus = [
@@ -437,9 +447,7 @@ in
           PrivateTmp = !config.boot.isContainer;
           # needed for hardware acceleration
           PrivateDevices = !cfg.hardwareAcceleration.enable;
-          DeviceAllow = lib.optionals (
-            cfg.hardwareAcceleration.enable && cfg.hardwareAcceleration.devices != [ ]
-          ) (map (device: "${device} rw") cfg.hardwareAcceleration.devices);
+          DeviceAllow = mkIf (cfg.hardwareAcceleration.enable && cfg.hardwareAcceleration.device != null) [ "${cfg.hardwareAcceleration.device} rw" ];
           PrivateUsers = true;
           RemoveIPC = true;
 

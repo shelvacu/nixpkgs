@@ -18,7 +18,6 @@
         hardwareAcceleration = {
           enable = true;
           type = "vaapi";
-          devices = [ "/dev/dri/renderD128" ];
         };
         transcoding = {
           enableToneMapping = false;
@@ -29,14 +28,11 @@
           h264Crf = 23;
           h265Crf = 28;
           throttleTranscoding = false;
-          hardwareDecodingCodecs = [
-            "h264"
-            "hevc"
-          ];
-          hardwareEncodingCodecs = [
-            "h264"
-            "hevc"
-          ];
+          hardwareDecodingCodecs = {
+            h264 = true;
+            hevc = true;
+          };
+          hardwareEncodingCodecs.hevc = true;
         };
       };
       environment.systemPackages = with pkgs; [ ffmpeg ];
@@ -50,7 +46,6 @@
         hardwareAcceleration = {
           enable = true;
           type = "vaapi";
-          devices = [ "/dev/dri/renderD128" ];
         };
         transcoding = {
           threadCount = 2;
@@ -65,56 +60,50 @@
   # Beware, this link can be resource intensive
   testScript =
     let
-      payloads = {
-        auth = pkgs.writeText "auth.json" (
-          builtins.toJSON {
-            Username = "jellyfin";
-          }
-        );
-        empty = pkgs.writeText "empty.json" (builtins.toJSON { });
-      };
+      payloads =
+        builtins.mapAttrs (k: v: pkgs.writeText "${k}.json" (builtins.toJSON v))
+        {
+          auth = { Username = "jellyfin"; };
+          empty = { };
+        };
     in
     ''
       import json
       from urllib.parse import urlencode
 
-      machine.wait_for_unit("jellyfin.service")
-      machine.wait_for_open_port(8096)
-      machine.wait_until_succeeds("journalctl --since -1m --unit jellyfin --grep 'Startup complete'")
+      def wait_for_jellyfin(machine):
+        machine.wait_for_unit("jellyfin.service")
+        machine.wait_for_open_port(8096)
+        machine.wait_until_succeeds("journalctl --since -1m --unit jellyfin --grep 'Startup complete'")
+
+      wait_for_jellyfin(machine)
       machine.succeed("curl --fail http://localhost:8096/")
 
       machine.wait_until_succeeds("curl --fail http://localhost:8096/health | grep Healthy")
 
       # Test hardware acceleration configuration
       with subtest("Hardware acceleration configuration"):
-          machineWithTranscoding.wait_for_unit("jellyfin.service")
-          machineWithTranscoding.wait_for_open_port(8096)
-          machineWithTranscoding.wait_until_succeeds("journalctl --since -1m --unit jellyfin --grep 'Startup complete'")
+          wait_for_jellyfin(machineWithTranscoding)
 
           # Check device access
           machineWithTranscoding.succeed("systemctl show jellyfin.service --property=DeviceAllow | grep '/dev/dri/renderD128 rw'")
 
       # Test forceEncodingConfig backup functionality
       with subtest("Force encoding config creates backup"):
-          machineWithForceConfig.wait_for_unit("jellyfin.service")
-          machineWithForceConfig.wait_for_open_port(8096)
-          machineWithForceConfig.wait_until_succeeds("journalctl --since -1m --unit jellyfin --grep 'Startup complete'")
-
-          # Verify encoding.xml exists
-          machineWithForceConfig.succeed("test -f /var/lib/jellyfin/config/encoding.xml")
+          machineWithForceConfig.succeed("systemctl stop jellyfin.service")
 
           # Create a marker in the current encoding.xml to verify backup works
-          machineWithForceConfig.succeed("echo '<!-- MARKER -->' >> /var/lib/jellyfin/config/encoding.xml")
+          machineWithForceConfig.succeed("rm /var/lib/jellyfin/config/encoding.xml")
+          machineWithForceConfig.succeed("echo '<!-- MARKER -->' > /var/lib/jellyfin/config/encoding.xml")
 
           # Restart the service to trigger the backup
           machineWithForceConfig.succeed("systemctl restart jellyfin.service")
-          machineWithForceConfig.wait_for_unit("jellyfin.service")
-          machineWithForceConfig.wait_for_open_port(8096)
+          wait_for_jellyfin(machineWithForceConfig)
 
           # Verify backup was created with the marker
           machineWithForceConfig.succeed("grep -q 'MARKER' /var/lib/jellyfin/config/encoding.xml.backup")
 
-          # Verify the new encoding.xml does not have the marker (was overwritten)
+          # Verify the new encoding.xml does not have the marker
           machineWithForceConfig.fail("grep -q 'MARKER' /var/lib/jellyfin/config/encoding.xml")
 
       auth_header = 'MediaBrowser Client="NixOS Integration Tests", DeviceId="1337", Device="Apple II", Version="20.09"'
