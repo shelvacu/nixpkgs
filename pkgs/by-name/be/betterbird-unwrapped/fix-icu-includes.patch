@@ -1,0 +1,93 @@
+From 76fbcca4b21b18387cb84d6ff2071d8408307c31 Mon Sep 17 00:00:00 2001
+From: Shelvacu <git@shelvacu.com>
+Date: Fri, 12 Dec 2025 12:22:57 -0800
+Subject: [PATCH] Fix includes for icu i18n library
+
+The old version only worked when using vendored ICU; when using --with-system-icu, it break because it uses the wrong header.
+---
+ 115/features/14-feature-regexp-searchterm.patch    | 2 +-
+ 115/features/feature-506064-match-diacritics.patch | 2 +-
+ 128/features/14-feature-regexp-searchterm.patch    | 2 +-
+ 128/features/feature-506064-match-diacritics.patch | 2 +-
+ 140/features/14-feature-regexp-searchterm.patch    | 2 +-
+ 140/features/feature-506064-match-diacritics.patch | 2 +-
+ 6 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/115/features/14-feature-regexp-searchterm.patch b/115/features/14-feature-regexp-searchterm.patch
+index 428387d6..da5394ba 100644
+--- a/115/features/14-feature-regexp-searchterm.patch
++++ b/115/features/14-feature-regexp-searchterm.patch
+@@ -27,7 +27,7 @@ diff --git a/mailnews/search/public/nsMsgSearchTerm.h b/mailnews/search/public/n
+ +// '/intl/icu/source/i18n/repattrn.cpp'
+ +// Furthermore, this build option needs to be cleared:
+ +// # DEFINES['UCONFIG_NO_REGULAR_EXPRESSIONS'] = True
+-+#include "../../../../intl/icu/source/i18n/unicode/regex.h"
+++#include "unicode/regex.h"
+ +
+ +using namespace U_ICU_NAMESPACE;  // currently icu_73
+ +
+diff --git a/115/features/feature-506064-match-diacritics.patch b/115/features/feature-506064-match-diacritics.patch
+index eccd406b..6ec53eeb 100644
+--- a/115/features/feature-506064-match-diacritics.patch
++++ b/115/features/feature-506064-match-diacritics.patch
+@@ -20,7 +20,7 @@ diff --git a/mailnews/base/src/nsMsgUtils.cpp b/mailnews/base/src/nsMsgUtils.cpp
+ +// See feature-506064-match-diacritics-m-c.patch.
+ +// Furthermore, this build option needs to be cleared:
+ +// # DEFINES['UCONFIG_NO_TRANSLITERATION'] = True
+-+#include "../../../../intl/icu/source/i18n/unicode/translit.h"
+++#include "unicode/translit.h"
+ +
+ +using namespace U_ICU_NAMESPACE;  // currently icu_73
+ +
+diff --git a/128/features/14-feature-regexp-searchterm.patch b/128/features/14-feature-regexp-searchterm.patch
+index d684e443..5b388141 100644
+--- a/128/features/14-feature-regexp-searchterm.patch
++++ b/128/features/14-feature-regexp-searchterm.patch
+@@ -26,7 +26,7 @@ diff --git a/mailnews/search/public/nsMsgSearchTerm.h b/mailnews/search/public/n
+ +// '/intl/icu/source/i18n/repattrn.cpp'
+ +// Furthermore, this build option needs to be cleared:
+ +// # DEFINES['UCONFIG_NO_REGULAR_EXPRESSIONS'] = True
+-+#include "../../../../intl/icu/source/i18n/unicode/regex.h"
+++#include "unicode/regex.h"
+ +
+ +using namespace U_ICU_NAMESPACE;  // currently icu_73
+ +
+diff --git a/128/features/feature-506064-match-diacritics.patch b/128/features/feature-506064-match-diacritics.patch
+index f60bfdca..5ada29b4 100644
+--- a/128/features/feature-506064-match-diacritics.patch
++++ b/128/features/feature-506064-match-diacritics.patch
+@@ -20,7 +20,7 @@ diff --git a/mailnews/base/src/nsMsgUtils.cpp b/mailnews/base/src/nsMsgUtils.cpp
+ +// See feature-506064-match-diacritics-m-c.patch.
+ +// Furthermore, this build option needs to be cleared:
+ +// # DEFINES['UCONFIG_NO_TRANSLITERATION'] = True
+-+#include "../../../../intl/icu/source/i18n/unicode/translit.h"
+++#include "unicode/translit.h"
+ +
+ +using namespace U_ICU_NAMESPACE;  // currently icu_73
+ +
+diff --git a/140/features/14-feature-regexp-searchterm.patch b/140/features/14-feature-regexp-searchterm.patch
+index d684e443..5b388141 100644
+--- a/140/features/14-feature-regexp-searchterm.patch
++++ b/140/features/14-feature-regexp-searchterm.patch
+@@ -26,7 +26,7 @@ diff --git a/mailnews/search/public/nsMsgSearchTerm.h b/mailnews/search/public/n
+ +// '/intl/icu/source/i18n/repattrn.cpp'
+ +// Furthermore, this build option needs to be cleared:
+ +// # DEFINES['UCONFIG_NO_REGULAR_EXPRESSIONS'] = True
+-+#include "../../../../intl/icu/source/i18n/unicode/regex.h"
+++#include "unicode/regex.h"
+ +
+ +using namespace U_ICU_NAMESPACE;  // currently icu_73
+ +
+diff --git a/140/features/feature-506064-match-diacritics.patch b/140/features/feature-506064-match-diacritics.patch
+index 17345033..7c78da20 100644
+--- a/140/features/feature-506064-match-diacritics.patch
++++ b/140/features/feature-506064-match-diacritics.patch
+@@ -20,7 +20,7 @@ diff --git a/mailnews/base/src/nsMsgUtils.cpp b/mailnews/base/src/nsMsgUtils.cpp
+ +// See feature-506064-match-diacritics-m-c.patch.
+ +// Furthermore, this build option needs to be cleared:
+ +// # DEFINES['UCONFIG_NO_TRANSLITERATION'] = True
+-+#include "../../../../intl/icu/source/i18n/unicode/translit.h"
+++#include "unicode/translit.h"
+ +
+ +using namespace U_ICU_NAMESPACE;  // currently icu_73
+ +

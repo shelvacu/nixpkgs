@@ -12,6 +12,7 @@
   writers,
   nix-prefetch-hg,
   nix,
+  applyPatches,
 }:
 
 let
@@ -25,6 +26,12 @@ let
     repo = "thunderbird-patches";
     rev = betterbirdVersion;
     hash = "sha256-v7vJ/uI/M4vrUzp3GRZIGqRN8t8m0wsi5fq1ciK8LMo=";
+  };
+
+  # yes, we need to patch the patches
+  betterbird-patches-patched = applyPatches {
+    src = betterbird-patches;
+    patches = [ ./fix-icu-includes.patch ];
   };
 
   remote-patch-data = lib.importJSON ./patchdata.json;
@@ -97,14 +104,14 @@ in
     extraPostPatch = thunderbird-unwrapped.extraPostPatch or "" + /* bash */ ''
       patches=$(mktemp -d)
       for dir in branding bugs features misc; do
-        if [ -d ${betterbird-patches}/${majVer}/$dir ]; then
-          cp ${betterbird-patches}/${majVer}/$dir/*.patch $patches/
+        if [ -d ${betterbird-patches-patched}/${majVer}/$dir ]; then
+          cp ${betterbird-patches-patched}/${majVer}/$dir/*.patch $patches/
         fi
       done
       # Copy external patches
       cp ${remote-patches-folder}/*.patch $patches/
 
-      cp ${betterbird-patches}/${majVer}/series* $patches/
+      cp ${betterbird-patches-patched}/${majVer}/series* $patches/
       chmod -R +w $patches
 
       cd $patches
@@ -128,7 +135,7 @@ in
 
       function applyPatches() {
         declare seriesFileName="$1" srcRoot="$2"
-        declare seriesFilePath="${betterbird-patches}/${majVer}/$seriesFileName"
+        declare seriesFilePath="${betterbird-patches-patched}/${majVer}/$seriesFileName"
         declare -a patchLines=()
         mapfile -t patchLines <"$seriesFilePath"
         declare patch=""
