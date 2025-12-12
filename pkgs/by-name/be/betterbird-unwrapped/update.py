@@ -62,11 +62,11 @@ def main() -> int:
     if old_rev not in valid_tags:
         raise RuntimeError(f"Don't know how to update, current rev {old_rev!r} not in {valid_tags!r}")
 
-    if valid_tags[0] == old_rev:
+    new_rev = valid_tags[0]
+
+    if new_rev == old_rev:
         # nothing to do
         return 0
-
-    new_rev = valid_tags[0]
 
     old_url = nix_eval("betterbird-unwrapped.betterbird-patches.url")
     new_url = old_url.replace(old_rev, new_rev)
@@ -101,6 +101,8 @@ def main() -> int:
         def update_src(conf_name: str, attr_path: str):
             old_rev = nix_eval(f"{attr_path}.rev")
             new_rev = conf[f"{conf_name}_REV"]
+            if old_rev == new_rev:
+                return
             hg_url = nix_eval(f"{attr_path}.url")
 
             old_sri = nix_eval(f"{attr_path}.hash")
@@ -147,7 +149,7 @@ def main() -> int:
                         "hash": patch_sri,
                     })
 
-        patchdata_fn.write_text(json.dumps(new_patchdata))
+        patchdata_fn.write_text(json.dumps(new_patchdata, indent=2))
 
     return 0
 
