@@ -4,8 +4,6 @@
   name = "jellyfin";
   meta.maintainers = with lib.maintainers; [ minijackson ];
 
-  defaults.systemd.services.jellyfin.preStart = lib.mkBefore "set -xv";
-
   nodes = {
     machine = {
       services.jellyfin.enable = true;

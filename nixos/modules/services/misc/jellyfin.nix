@@ -32,11 +32,6 @@ let
     submodule
     ;
   cfg = config.services.jellyfin;
-  devicePath =
-    if cfg.hardwareAcceleration.device != null then
-      escapeXML cfg.hardwareAcceleration.device
-    else
-      "";
   filteredDecodingCodecs = builtins.filter (
     c: c != "hevcRExt10bit" && c != "hevcRExt12bit" && cfg.transcoding.hardwareDecodingCodecs.${c}
   ) (builtins.attrNames cfg.transcoding.hardwareDecodingCodecs);
@@ -45,11 +40,11 @@ let
     <EncodingOptions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
       <HardwareAccelerationType>${cfg.hardwareAcceleration.type}</HardwareAccelerationType>
       ${optionalString (
-        cfg.hardwareAcceleration.type == "vaapi" && devicePath != ""
-      ) "<VaapiDevice>${devicePath}</VaapiDevice>"}
+        cfg.hardwareAcceleration.type == "vaapi" && cfg.hardwareAcceleration.device != null
+      ) "<VaapiDevice>${escapeXML cfg.hardwareAcceleration.device}</VaapiDevice>"}
       ${optionalString (
-        cfg.hardwareAcceleration.type == "qsv" && devicePath != ""
-      ) "<OpenclDevice>${devicePath}</OpenclDevice>"}
+        cfg.hardwareAcceleration.type == "qsv" && cfg.hardwareAcceleration.device != null
+      ) "<OpenclDevice>${escapeXML cfg.hardwareAcceleration.device}</OpenclDevice>"}
       <EncodingThreadCount>${
         if cfg.transcoding.threadCount != null then toString cfg.transcoding.threadCount else "-1"
       }</EncodingThreadCount>
@@ -113,7 +108,7 @@ in
       configDir = mkOption {
         type = path;
         default = "${cfg.dataDir}/config";
-        defaultText = literalExpression ''"''${cfg.dataDir}/config"'';
+        defaultText = "\${cfg.dataDir}/config";
         description = ''
           Directory containing the server configuration files,
           passed with `--configdir` see [configuration-directory](https://jellyfin.org/docs/general/administration/configuration/#configuration-directory)
@@ -132,7 +127,7 @@ in
       logDir = mkOption {
         type = path;
         default = "${cfg.dataDir}/log";
-        defaultText = literalExpression ''"''${cfg.dataDir}/log"'';
+        defaultText = "\${cfg.dataDir}/log";
         description = ''
           Directory where the Jellyfin logs will be stored,
           passed with `--logdir` see [#log-directory](https://jellyfin.org/docs/general/administration/configuration/#log-directory)
@@ -189,7 +184,7 @@ in
 
           When enabled, the encoding configuration specified in {option}`services.jellyfin.transcoding`
           and {option}`services.jellyfin.hardwareAcceleration` will be applied on every service restart.
-          A backup of the existing `encoding.xml` will be created at `encoding.xml.backup` before overwriting.
+          A backup of the existing `encoding.xml` will be created at `encoding.xml.backup-$timestamp`.
 
           ::: {.warning}
           Enabling this option means that any changes made to transcoding settings through
@@ -450,7 +445,7 @@ in
           PrivateTmp = !config.boot.isContainer;
           # needed for hardware acceleration
           PrivateDevices = mkDefault false;
-          DeviceAllow = mkIf (cfg.hardwareAcceleration.enable && cfg.hardwareAcceleration.device != null) [ "${cfg.hardwareAcceleration.device} rw" ];
+          DeviceAllow = mkIf cfg.hardwareAcceleration.enable [ "${cfg.hardwareAcceleration.device} rw" ];
           PrivateUsers = true;
           RemoveIPC = true;
 
