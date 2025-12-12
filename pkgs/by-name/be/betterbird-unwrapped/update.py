@@ -84,7 +84,7 @@ def main() -> int:
     with tempfile.TemporaryDirectory() as tempdir_str:
         tempdir = Path(tempdir_str)
         result = tempdir / "result"
-        run("nix-build", "--expr", "let pkgs = import <nixpkgs> { }; in pkgs.srcOnly { inherit (pkgs.betterbird-unwrapped) name version stdenv; src = pkgs.betterbird-unwrapped.betterbird-patches; }", "--out-link", result, env={"NIX_PATH": f"nixpkgs={nixpkgs_path}"})
+        run("nix-build", "--expr", "let pkgs = import <nixpkgs> { }; in pkgs.srcOnly { inherit (pkgs.betterbird-unwrapped) name version stdenv; src = pkgs.betterbird-unwrapped.betterbird-patches; }", "--out-link", result, env={**os.environ, "NIX_PATH": f"nixpkgs={nixpkgs_path}"})
 
         conf_fn = result / f"{MAJOR_VERSION}/{MAJOR_VERSION}.sh"
         conf = {}

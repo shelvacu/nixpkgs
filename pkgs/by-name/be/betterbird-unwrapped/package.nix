@@ -15,14 +15,14 @@
 }:
 
 let
-  betterbirdVersion = "140.5.0esr-bb14";
+  betterbirdVersion = "140.0b1-bb1";
   majVer = lib.versions.major betterbirdVersion;
 
   betterbird-patches = fetchFromGitHub {
     owner = "Betterbird";
     repo = "thunderbird-patches";
     rev = betterbirdVersion;
-    hash = "sha256-Hzdm8xpoEqV9BsqW235JrLalq5sUNcvp/QMjU3aSuxI=";
+    hash = "sha256-lXIAfY/4FRk2YEIA90zphvZ3iefCEZ8nOxAiBmLtS4Q=";
   };
 
   remote-patch-data = lib.importJSON ./patchdata.json;
