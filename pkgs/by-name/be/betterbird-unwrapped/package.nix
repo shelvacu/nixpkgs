@@ -10,6 +10,8 @@
   linkFarmFromDrvs,
   fetchhg,
   writers,
+  nix-prefetch-hg,
+  nix,
 }:
 
 let
@@ -46,7 +48,12 @@ in
     pname = "betterbird";
     version = betterbirdVersion;
 
-    updateScript = writers.writePython3 "update-betterbird" { } ./update.py;
+    updateScript = writers.writePython3 "update-betterbird" {
+      libraries = (p: [ p.requests ]);
+      makeWrapperArgs = [
+        "--prefix" "PATH" ":" (lib.makeBinPath [ nix nix-prefetch-hg ])
+      ];
+    } ./update.py;
 
     # Keep binaryName as "thunderbird" so --with-app-name=thunderbird is passed
     # The betterbird patches change the BINARY variable to "betterbird" while keeping MOZ_APP_NAME=thunderbird
