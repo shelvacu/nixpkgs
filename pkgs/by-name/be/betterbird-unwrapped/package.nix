@@ -5,32 +5,21 @@
   fetchurl,
   git,
   libdbusmenu-gtk3 ? null,
-  thunderbirdPackages,
+  thunderbird-unwrapped,
   stdenv,
   linkFarmFromDrvs,
   fetchhg,
-  wrapThunderbird,
   writers,
 }:
 
 let
-  thunderbird-unwrapped = (thunderbirdPackages.thunderbird-140.override {
-    crashreporterSupport = false;
-  }).overrideAttrs rec {
-    version = "140.5.0esr";
-    src = fetchurl {
-      url = "mirror://mozilla/thunderbird/releases/${version}/source/thunderbird-${version}.source.tar.xz";
-      hash = "sha256-y40QaTu8BMS/xTnEVgd5+0NrQDJr9w30wII6wSW4FeU=";
-    };
-  };
-
-  version = "140.5.0esr";
-  majVer = lib.versions.major version;
+  betterbirdVersion = "140.5.0esr-bb14";
+  majVer = lib.versions.major betterbirdVersion;
 
   betterbird-patches = fetchFromGitHub {
     owner = "Betterbird";
     repo = "thunderbird-patches";
-    rev = "${version}-bb14";
+    rev = betterbirdVersion;
     hash = "sha256-Hzdm8xpoEqV9BsqW235JrLalq5sUNcvp/QMjU3aSuxI=";
   };
 
@@ -55,9 +44,9 @@ in
 (
   (buildMozillaMach {
     pname = "betterbird";
-    inherit version;
+    version = betterbirdVersion;
 
-    updateScript = writers.writeBashBin "update-betterbird" { } ./update.bash;
+    updateScript = writers.writePython3 "update-betterbird" { } ./update.py;
 
     # Keep binaryName as "thunderbird" so --with-app-name=thunderbird is passed
     # The betterbird patches change the BINARY variable to "betterbird" while keeping MOZ_APP_NAME=thunderbird
@@ -230,7 +219,6 @@ in
     doInstallCheck = false;
 
     passthru = oldAttrs.passthru // {
-      inherit betterbird-patches remote-patches-folder comm-source thunderbird-unwrapped;
-      thunderbird = wrapThunderbird thunderbird-unwrapped { };
+      inherit betterbird-patches remote-patches-folder comm-source;
     };
   })

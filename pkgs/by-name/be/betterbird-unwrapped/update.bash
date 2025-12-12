@@ -1,4 +1,5 @@
 set -euo pipefail
 
-declare -a args=("$@")
-declare -p args
+pkgDir="$(dirname -- "$0")"
+
+
