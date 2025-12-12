@@ -20,6 +20,7 @@ let
     concatMapStringsSep
     escapeShellArg
     literalExpression
+    mkDefault
     ;
   inherit (lib.types)
     bool
@@ -75,10 +76,10 @@ let
   codecListToType =
     list:
     submodule { options = builtins.listToAttrs (map (name:
-      nameValuePair name {
+      nameValuePair name (mkOption {
         type = bool;
         default = false;
-      }
+      })
     ) list); };
 in
 {
@@ -379,20 +380,21 @@ in
         preStart = mkIf cfg.hardwareAcceleration.enable (''
           configDir=${escapeShellArg cfg.configDir}
           encodingXml="$configDir/encoding.xml"
-          encodingXmlBackup="$configDir/encoding.xml.backup"
         '' + (if cfg.forceEncodingConfig then ''
-          if [[ -e $encodingXml ]] && ! [[ -L $encodingXml ]]; then
-            if [[ -e "$encodingXmlBackup" ]]; then
-              echo "FAIL: Going to backup $encodingXml as $encodingXmlBackup, but $encodingXmlBackup already exists!" >&2
-              exit 1
+          if [[ -e $encodingXml ]]; then
+            # this intentionally removes trailing newlines
+            currentText="$(<"$encodingXml")"
+            configuredText="$(<${encodingXmlFile})"
+            if [[ $currentText == "$configuredText" ]]; then
+              # don't need to do anything
+              exit 0
+            else
+              encodingXmlBackup="$configDir/encoding.xml.backup-$(date -u +"%FT%H_%M_%SZ")"
+              mv --update=none-fail -T "$encodingXml" "$encodingXmlBackup"
             fi
-            mv --update=none-fail -T "$encodingXml" "$encodingXmlBackup"
           fi
-          if [[ -L $encodingXml ]]; then
-            rm "$encodingXml"
-          fi
-          # ln doesn't clobber by default
-          ln -s -T ${encodingXmlFile} "$encodingXml"
+          cp --update=none-fail -T ${encodingXmlFile} "$encodingXml"
+          chmod u+w "$encodingXml"
         '' else ''
           if [[ -e $encodingXml ]]; then
             # this intentionally removes trailing newlines
@@ -404,6 +406,7 @@ in
             fi
           else
             cp --update=none-fail -T ${encodingXmlFile} "$encodingXml"
+            chmod u+w "$encodingXml"
           fi
         ''));
 
@@ -446,7 +449,7 @@ in
           LockPersonality = true;
           PrivateTmp = !config.boot.isContainer;
           # needed for hardware acceleration
-          PrivateDevices = !cfg.hardwareAcceleration.enable;
+          PrivateDevices = mkDefault false;
           DeviceAllow = mkIf (cfg.hardwareAcceleration.enable && cfg.hardwareAcceleration.device != null) [ "${cfg.hardwareAcceleration.device} rw" ];
           PrivateUsers = true;
           RemoveIPC = true;

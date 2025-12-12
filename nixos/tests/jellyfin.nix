@@ -4,6 +4,8 @@
   name = "jellyfin";
   meta.maintainers = with lib.maintainers; [ minijackson ];
 
+  defaults.systemd.services.jellyfin.preStart = lib.mkBefore "set -xv";
+
   nodes = {
     machine = {
       services.jellyfin.enable = true;
@@ -70,11 +72,40 @@
     ''
       import json
       from urllib.parse import urlencode
+      from test_driver.errors import RequestedAssertionFailed
 
       def wait_for_jellyfin(machine):
-        machine.wait_for_unit("jellyfin.service")
-        machine.wait_for_open_port(8096)
-        machine.wait_until_succeeds("journalctl --since -1m --unit jellyfin --grep 'Startup complete'")
+          unit = "jellyfin.service"
+          port = 8096
+          def check_finished(_) -> bool:
+              state = machine.get_unit_property(unit, "ActiveState")
+              if state == "failed":
+                  raise RequestedAssertionFailed(f'unit "{unit}" reached state "{state}"')
+
+              if state == "inactive":
+                  status, jobs = machine.systemctl("list-jobs --full 2>&1")
+                  if "No jobs" in jobs:
+                      info = machine.get_unit_info(unit)
+                      if info["ActiveState"] == state:
+                          raise RequestedAssertionFailed(
+                              f'unit "{unit}" is inactive and there are no pending jobs'
+                          )
+
+              if state != "active":
+                  return False
+
+              status, _ = machine.execute(f"nc -z localhost {port}")
+              if status != 0:
+                  return False
+
+              status, _ = machine.execute(f"journalctl --since -1m --unit {unit} --grep 'Startup complete'")
+              if status != 0:
+                  return False
+
+              return True
+
+          with machine.nested(f"Waiting for jellyfin to start, be listening on port {port}, and show 'Startup complete' in the logs"):
+              retry(check_finished)
 
       wait_for_jellyfin(machine)
       machine.succeed("curl --fail http://localhost:8096/")
@@ -93,7 +124,6 @@
           machineWithForceConfig.succeed("systemctl stop jellyfin.service")
 
           # Create a marker in the current encoding.xml to verify backup works
-          machineWithForceConfig.succeed("rm /var/lib/jellyfin/config/encoding.xml")
           machineWithForceConfig.succeed("echo '<!-- MARKER -->' > /var/lib/jellyfin/config/encoding.xml")
 
           # Restart the service to trigger the backup
@@ -101,7 +131,7 @@
           wait_for_jellyfin(machineWithForceConfig)
 
           # Verify backup was created with the marker
-          machineWithForceConfig.succeed("grep -q 'MARKER' /var/lib/jellyfin/config/encoding.xml.backup")
+          machineWithForceConfig.succeed("grep -q 'MARKER' /var/lib/jellyfin/config/encoding.xml.backup*")
 
           # Verify the new encoding.xml does not have the marker
           machineWithForceConfig.fail("grep -q 'MARKER' /var/lib/jellyfin/config/encoding.xml")
