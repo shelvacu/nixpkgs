@@ -49,8 +49,10 @@ def main() -> int:
     self_path = argv0.parent
     nixpkgs_path = self_path.parent.parent.parent.parent
 
+    print("{argv0=} {self_path=} {nixpkgs_path=}", file=sys.stderr)
+
     def nix_eval(attrpath: str) -> str:
-        return run("nix-instantiate", "--eval", "--raw", "--attr", attrpath, cwd=nixpkgs_path)
+        return run("nix-instantiate", "--eval", "--raw", "--attr", attrpath, nixpkgs_path)
 
     tags = get_tags()
     valid_tags = [tag for tag in tags if re.match(f"^{MAJOR_VERSION}\\..*-bb[0-9]+$", tag)]
@@ -83,7 +85,7 @@ def main() -> int:
     with tempfile.TemporaryDirectory() as tempdir_str:
         tempdir = Path(tempdir_str)
         result = tempdir / "result"
-        run("nix-build", "--expr", "let pkgs = import ./. { }; in pkgs.srcOnly { inherit (pkgs.betterbird-unwrapped) name version stdenv; src = pkgs.betterbird-unwrapped.betterbird-patches; }", "--out-link", result, cwd=nixpkgs_path)
+        run("nix-build", "--expr", "let pkgs = import <nixpkgs> { }; in pkgs.srcOnly { inherit (pkgs.betterbird-unwrapped) name version stdenv; src = pkgs.betterbird-unwrapped.betterbird-patches; }", "--out-link", result, env={"NIX_PATH": f"nixpkgs={nixpkgs_path}"})
 
         conf_fn = result / f"{MAJOR_VERSION}/{MAJOR_VERSION}.sh"
         conf = {}
