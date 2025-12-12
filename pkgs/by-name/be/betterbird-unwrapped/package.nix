@@ -42,19 +42,21 @@ let
     rev = "6a3011b7161c6f3a36d5116f2608d51b19fb4d58";
     hash = "sha256-w8KLdxw3r/E3dFM9ejRajMPTsAQ3VRFzF0HBve33JFk=";
   };
+
+  updatePackage = writers.writePython3 "update-betterbird" {
+    libraries = (p: [ p.requests ]);
+    flakeIgnore = [ "E501" ];
+    makeWrapperArgs = [
+      "--prefix" "PATH" ":" (lib.makeBinPath [ nix nix-prefetch-hg ])
+    ];
+  } ./update.py;
 in
 (
   (buildMozillaMach {
     pname = "betterbird";
     version = betterbirdVersion;
 
-    updateScript = writers.writePython3 "update-betterbird" {
-      libraries = (p: [ p.requests ]);
-      flakeIgnore = [ "E501" ];
-      makeWrapperArgs = [
-        "--prefix" "PATH" ":" (lib.makeBinPath [ nix nix-prefetch-hg ])
-      ];
-    } ./update.py;
+    updateScript = [ updatePackage ./. ];
 
     # Keep binaryName as "thunderbird" so --with-app-name=thunderbird is passed
     # The betterbird patches change the BINARY variable to "betterbird" while keeping MOZ_APP_NAME=thunderbird

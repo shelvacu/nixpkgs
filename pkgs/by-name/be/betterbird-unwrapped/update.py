@@ -45,11 +45,10 @@ def convert_hash_to_sri(base32: str) -> str:
 
 
 def main() -> int:
-    argv0 = Path(sys.argv[0]).absolute()
-    self_path = argv0.parent
+    self_path = Path(sys.argv[1]).absolute()
     nixpkgs_path = self_path.parent.parent.parent.parent
 
-    print("{argv0=} {self_path=} {nixpkgs_path=}", file=sys.stderr)
+    print(f"{self_path=} {nixpkgs_path=}", file=sys.stderr)
 
     def nix_eval(attrpath: str) -> str:
         return run("nix-instantiate", "--eval", "--raw", "--attr", attrpath, nixpkgs_path)
