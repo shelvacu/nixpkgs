@@ -50,6 +50,7 @@ in
 
     updateScript = writers.writePython3 "update-betterbird" {
       libraries = (p: [ p.requests ]);
+      flakeIgnore = [ "E501" ];
       makeWrapperArgs = [
         "--prefix" "PATH" ":" (lib.makeBinPath [ nix nix-prefetch-hg ])
       ];

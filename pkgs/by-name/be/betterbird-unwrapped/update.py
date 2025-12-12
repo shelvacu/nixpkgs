@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 import os
 import requests
 import re
@@ -7,6 +6,9 @@ import sys
 import tempfile
 import json
 from pathlib import Path
+
+MAJOR_VERSION = 140
+
 
 def get_tags() -> list[str]:
     token = os.environ.get("GITHUB_TOKEN")
@@ -20,10 +22,10 @@ def get_tags() -> list[str]:
     if response.status_code != 200:
         raise RuntimeError(f"Failed to fetch release info: {response.status_code} ({response.json().get('message')})")
     tag_data = response.json()
-
     return [x["name"] for x in tag_data]
 
-def run(*cmd: str|Path, **kwargs) -> str:
+
+def run(*cmd: str | Path, **kwargs) -> str:
     proc = subprocess.Popen(
         cmd,
         stdout=subprocess.PIPE,
@@ -37,15 +39,19 @@ def run(*cmd: str|Path, **kwargs) -> str:
         raise RuntimeError(f"Failed to run command: {cmd!r} exited with code {proc.returncode}")
     return stdout_data.strip()
 
+
 def convert_hash_to_sri(base32: str) -> str:
     return run("nix-hash", "--to-sri", "--type", "sha256", base32)
+
 
 def main() -> int:
     argv0 = Path(sys.argv[0]).absolute()
     self_path = argv0.parent
     nixpkgs_path = self_path.parent.parent.parent.parent
-    def nix_eval(attrpath:str) -> str:
+
+    def nix_eval(attrpath: str) -> str:
         return run("nix-instantiate", "--eval", "--raw", "--attr", attrpath, cwd=nixpkgs_path)
+
     tags = get_tags()
     valid_tags = [tag for tag in tags if re.match(f"^{MAJOR_VERSION}\\..*-bb[0-9]+$", tag)]
     old_rev = nix_eval("betterbird-unwrapped.betterbird-patches.rev")
@@ -98,8 +104,8 @@ def main() -> int:
             new_sri = convert_hash_to_sri(new_hash)
             package_nix.write_text(
                 package_nix.read_text()
-                    .replace(old_rev, new_rev)
-                    .replace(old_sri, new_sri)
+                .replace(old_rev, new_rev)
+                .replace(old_sri, new_sri)
             )
 
         update_src("MOZILLA", "betterbird-unwrapped.src")
@@ -121,7 +127,7 @@ def main() -> int:
                 if " # " not in line:
                     continue
 
-                patch_name, url = [x.strip() for x in line.split(" # ",1)]
+                patch_name, url = [x.strip() for x in line.split(" # ", 1)]
                 url = url.replace("/rev/", "/raw-rev/")
 
                 known_patches = [d for d in old_patchdata if d["url"] == url and d["name"] == patch_name]
@@ -141,7 +147,6 @@ def main() -> int:
 
     return 0
 
-MAJOR_VERSION = 140
 
 if __name__ == "__main__":
     sys.exit(main())
