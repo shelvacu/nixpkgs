@@ -55,20 +55,23 @@ def main() -> int:
 
     tags = get_tags()
     valid_tags = [tag for tag in tags if re.match(f"^{MAJOR_VERSION}\\..*-bb[0-9]+$", tag)]
+
+    print(f"{tags=} {valid_tags=}", file=sys.stderr)
+
     old_rev = nix_eval("betterbird-unwrapped.betterbird-patches.rev")
     if old_rev not in valid_tags:
         raise RuntimeError(f"Don't know how to update, current rev {old_rev!r} not in {valid_tags!r}")
 
-    if valid_tags[-1] == old_rev:
+    if valid_tags[0] == old_rev:
         # nothing to do
         return 0
 
-    new_rev = valid_tags[-1]
+    new_rev = valid_tags[0]
 
     old_url = nix_eval("betterbird-unwrapped.betterbird-patches.url")
     new_url = old_url.replace(old_rev, new_rev)
 
-    new_hash = run("nix-prefetch-url", "--type", "sha256", new_url)
+    new_hash = run("nix-prefetch-url", "--type", "sha256", "--unpack", new_url)
     new_sri = convert_hash_to_sri(new_hash)
 
     old_sri = nix_eval("betterbird-unwrapped.betterbird-patches.hash")
