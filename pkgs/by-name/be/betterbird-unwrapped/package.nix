@@ -139,9 +139,8 @@ in
             continue
           fi
 
-          # requires vendored icu, fails to link with our icu
-          # feature-506064 depends on those icu patches
-          if [[ $patch == 14-feature-regexp-searchterm.patch || $patch == 14-feature-regexp-searchterm-moz.patch || $patch == feature-506064-match-diacritics.patch || $patch == feature-506064-match-diacritics-moz.patch ]]; then
+          # this patch attempts to un-disable regexp support in the vendored libicu, but the libicu provided by nixpkgs already has it
+          if [[ $patch == 14-feature-regexp-searchterm-moz.path ]]; then
             continue
           fi
           (
