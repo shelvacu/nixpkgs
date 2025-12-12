@@ -5,7 +5,7 @@
   fetchurl,
   git,
   libdbusmenu-gtk3 ? null,
-  thunderbird-unwrapped,
+  thunderbird-140-unwrapped,
   stdenv,
   linkFarmFromDrvs,
   fetchhg,
@@ -17,6 +17,8 @@
 let
   betterbirdVersion = "140.6.0esr-bb15";
   majVer = lib.versions.major betterbirdVersion;
+
+  thunderbird-unwrapped = thunderbird-140-unwrapped;
 
   betterbird-patches = fetchFromGitHub {
     owner = "Betterbird";
