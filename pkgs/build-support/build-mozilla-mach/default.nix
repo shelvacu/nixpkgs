@@ -74,8 +74,9 @@ in
   glib,
   gnum4,
   gtk3,
-  icu73,
-  icu77, # if you fiddle with the icu parameters, please check Thunderbird's overrides
+  icu73 ? null,
+  icu77 ? null, # if you fiddle with the icu parameters, please check Thunderbird's overrides
+  withSystemIcu ? true,
   libGL,
   libGLU,
   libevent,
@@ -492,7 +493,7 @@ buildStdenv.mkDerivation {
     # MacOS builds use bundled versions of libraries: https://bugzilla.mozilla.org/show_bug.cgi?id=1776255
     "--enable-system-pixman"
     "--with-system-ffi"
-    "--with-system-icu"
+    (enableFeature withSystemIcu "system-icu")
     "--with-system-jpeg"
     "--with-system-libevent"
     "--with-system-libvpx"
@@ -595,7 +596,7 @@ buildStdenv.mkDerivation {
       libdrm
     ]
   ))
-  ++ [ (if (lib.versionAtLeast version "138") then icu77 else icu73) ]
+  ++ lib.optional withSystemIcu (if (lib.versionAtLeast version "138") then icu77 else icu73)
   ++ lib.optional gssSupport libkrb5
   ++ lib.optional jemallocSupport jemalloc
   ++ extraBuildInputs;

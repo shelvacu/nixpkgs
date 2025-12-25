@@ -29,6 +29,7 @@ let
   #);
 
   baseAttrs = {
+    NIX_DEBUG = 6;
     src = fetchurl {
       url =
         if lib.versionAtLeast version "78.1" then

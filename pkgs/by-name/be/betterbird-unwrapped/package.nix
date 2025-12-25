@@ -13,6 +13,7 @@
   nix-prefetch-hg,
   nix,
   applyPatches,
+  srcOnly,
 }:
 
 let
@@ -59,6 +60,10 @@ let
       "--prefix" "PATH" ":" (lib.makeBinPath [ nix nix-prefetch-hg ])
     ];
   } ./update.py;
+
+  icu = thunderbird-unwrapped.icu77;
+  # override can be removed when https://github.com/NixOS/nixpkgs/pull/473936 is merged
+  icu-src = (srcOnly icu).overrideAttrs { outputBin = "out"; };
 in
 (
   (buildMozillaMach {
@@ -146,10 +151,6 @@ in
             continue
           fi
 
-          # this patch attempts to un-disable regexp support in the vendored libicu, but the libicu provided by nixpkgs already has it
-          if [[ $patch == 14-feature-regexp-searchterm-moz.path ]]; then
-            continue
-          fi
           (
             cd -- "$srcRoot"
             echo "Applying patch $patch in $PWD"
@@ -196,7 +197,9 @@ in
 
     pgoSupport = false; # console.warn: feeds: "downloadFee d: network connection unavailable"
 
-    inherit (thunderbird-unwrapped.passthru) icu73 icu77;
+    # icu73 = null; # shouldn't be needed, and we want an error if something tries to use it
+    # icu77 = icu;
+    withSystemIcu = false;
   }
 ).overrideAttrs
   (oldAttrs: {
@@ -237,6 +240,6 @@ in
     doInstallCheck = false;
 
     passthru = oldAttrs.passthru // {
-      inherit betterbird-patches remote-patches-folder comm-source;
+      inherit betterbird-patches remote-patches-folder comm-source icu icu-src updatePackage;
     };
   })
