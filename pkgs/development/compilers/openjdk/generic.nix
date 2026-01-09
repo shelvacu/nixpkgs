@@ -17,11 +17,11 @@
   pandoc,
 
   cpio,
+  cups,
   file,
   which,
   zip,
   zlib,
-  cups,
   freetype,
   harfbuzz,
   alsa-lib,
@@ -267,25 +267,13 @@ stdenv.mkDerivation (finalAttrs: {
   ];
 
   buildInputs = [
-    # TODO: Many of these should likely be in `nativeBuildInputs`.
     cpio
-    # `-lmagic` in NIX_LDFLAGS
-    file
     cups
     freetype
     alsa-lib
     libjpeg
     giflib
-    libX11
     libICE
-    libXext
-    libXrender
-    libXtst
-    libXt
-    libXi
-    libXinerama
-    libXcursor
-    libXrandr
     fontconfig
   ]
   ++ lib.optionals (atLeast11 && !atLeast21) [
@@ -299,6 +287,21 @@ stdenv.mkDerivation (finalAttrs: {
   ++ lib.optionals (!headless && enableGtk) [
     (if atLeast11 then gtk3 else gtk2)
     glib
+  ]
+  ++ lib.optionals (!(stdenv.targetPlatform.isWindows || stdenv.targetPlatform.isDarwin)) [
+    libX11
+    libXext
+    libXrender
+    libXtst
+    libXt
+    libXi
+    libXinerama
+    libXcursor
+    libXrandr
+  ]
+  ++ lib.optionals (!headless) [
+    # `-lmagic` in NIX_LDFLAGS
+    file
   ];
 
   propagatedBuildInputs = [ setJavaClassPath ];
@@ -314,6 +317,8 @@ stdenv.mkDerivation (finalAttrs: {
     "build"
     "host"
   ];
+
+  dontAddStaticConfigureFlags = true;
 
   # https://openjdk.org/groups/build/doc/building.html
   configureFlags = [
@@ -332,6 +337,7 @@ stdenv.mkDerivation (finalAttrs: {
     "--with-zlib=system"
     "--with-giflib=system"
   ]
+  # ++ lib.optional stdenv.targetPlatform.isStatic "--enable-static-build"
   ++ (
     if atLeast23 then
       [
@@ -390,7 +396,13 @@ stdenv.mkDerivation (finalAttrs: {
   ++ lib.optional headless (if atLeast11 then "--enable-headless-only" else "--disable-headful")
   ++ lib.optional (!headless && enableJavaFX) "--with-import-modules=${openjfx_jdk}";
 
-  buildFlags = if atLeast17 then [ "images" ] else [ "all" ];
+  buildFlags =
+    if stdenv.targetPlatform.isStatic then
+      [ "static-jdk" ]
+    else if atLeast17 then
+      [ "images" ]
+    else
+      [ "all" ];
 
   separateDebugInfo = true;
   __structuredAttrs = true;
@@ -450,11 +462,14 @@ stdenv.mkDerivation (finalAttrs: {
 
     NIX_LDFLAGS = lib.concatStringsSep " " (
       lib.optionals (!headless) [
-        "-lfontconfig"
-        "-lcups"
-        "-lXinerama"
-        "-lXrandr"
-        "-lmagic"
+        # "-lfontconfig"
+        # "-lXinerama"
+        # "-lXrandr"
+        # "-lmagic"
+      ]
+      ++ lib.optionals stdenv.hostPlatform.isLinux [
+        "--x-includes=${lib.getDev libX11}/include"
+        "--x-libraries=${lib.getLib libX11}/lib"
       ]
       ++ lib.optionals (!headless && enableGtk) [
         (if atLeast11 then "-lgtk-3" else "-lgtk-x11-2.0")

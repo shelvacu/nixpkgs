@@ -8,15 +8,16 @@
   libjpeg,
   libpng,
   libtiff,
+  enablePam ? stdenv.hostPlatform.isLinux && !stdenv.hostPlatform.isStatic,
   pam,
   dbus,
   enableSystemd ? lib.meta.availableOn stdenv.hostPlatform systemdLibs,
   systemdLibs,
   acl,
   gmp,
-  darwin,
   libusb1 ? null,
   gnutls ? null,
+  enableAvahi ? stdenv.hostPlatform.isLinux && !stdenv.hostPlatform.isStatic,
   avahi ? null,
   libpaper ? null,
   coreutils,
@@ -71,14 +72,16 @@ stdenv.mkDerivation rec {
     libpaper
   ]
   ++ lib.optionals stdenv.hostPlatform.isLinux [
-    avahi
-    pam
     dbus
     acl
   ]
+  ++ lib.optional enableAvahi avahi
+  ++ lib.optional enablePam pam
   ++ lib.optional enableSystemd systemdLibs;
 
   propagatedBuildInputs = [ gmp ];
+
+  # dontAddStaticConfigureFlags = true;
 
   configurePlatforms = lib.optionals stdenv.hostPlatform.isLinux [
     "build"
@@ -92,13 +95,14 @@ stdenv.mkDerivation rec {
   ]
   ++ lib.optionals stdenv.hostPlatform.isLinux [
     "--enable-dbus"
-    "--enable-pam"
     "--with-dbusdir=${placeholder "out"}/share/dbus-1"
   ]
+  ++ lib.optional enablePam "--enable-pam"
   ++ lib.optional (libusb1 != null) "--enable-libusb"
   ++ lib.optional (gnutls != null) "--enable-ssl"
-  ++ lib.optional (avahi != null) "--enable-avahi"
+  ++ lib.optional (enableAvahi && avahi != null) "--enable-avahi"
   ++ lib.optional (libpaper != null) "--enable-libpaper";
+  # ++ lib.optional (stdenv.targetPlatform.isStatic) "--enable-static-build";
 
   # AR has to be an absolute path
   preConfigure = ''
