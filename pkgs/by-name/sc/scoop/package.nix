@@ -10,16 +10,16 @@
 }:
 buildNpmPackage (finalAttrs: {
   pname = "scoop";
-  version = "0.6.59";
+  version = "0.6.58";
 
   src = fetchFromGitHub {
     owner = "harvard-lil";
     repo = "scoop";
     tag = finalAttrs.version;
-    hash = "sha256-KcoTl2ehla6ALLrpAyfOqDioP5s3CGVfVhsj3Fbq6/Y=";
+    hash = "sha256-OiPMPM0ZtREB9pkiA3i9HJ0wpwYDUAEoNTZZGqMeY+0=";
   };
 
-  npmDepsHash = "sha256-lx+MxV8JDArDMQ0OV4eDXOTzd7xRfvvpAGJp+jPQPgs=";
+  npmDepsHash = "sha256-tG5sQXavBaSvd82koTt0psNQ6QsItNpX9RQx3F8GcFA=";
 
   env.PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD = "1";
 
