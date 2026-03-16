@@ -10,16 +10,16 @@
 }:
 buildNpmPackage (finalAttrs: {
   pname = "scoop";
-  version = "0.6.58";
+  version = "0.6.59";
 
   src = fetchFromGitHub {
     owner = "harvard-lil";
     repo = "scoop";
     tag = finalAttrs.version;
-    hash = "sha256-OiPMPM0ZtREB9pkiA3i9HJ0wpwYDUAEoNTZZGqMeY+0=";
+    hash = "sha256-KcoTl2ehla6ALLrpAyfOqDioP5s3CGVfVhsj3Fbq6/Y=";
   };
 
-  npmDepsHash = "sha256-tG5sQXavBaSvd82koTt0psNQ6QsItNpX9RQx3F8GcFA=";
+  npmDepsHash = "sha256-lx+MxV8JDArDMQ0OV4eDXOTzd7xRfvvpAGJp+jPQPgs=";
 
   env.PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD = "1";
 
@@ -52,14 +52,30 @@ buildNpmPackage (finalAttrs: {
   passthru.updateScript = nix-update-script { };
 
   meta = {
-    description = "high fidelity, browser-based, web archiving capture engine for witnessing the web";
-    license = lib.licenses.mit;
+    description = "High fidelity, browser-based, web archiving capture engine for witnessing the web";
+    homepage = "https://github.com/harvard-lil/scoop";
+    changelog = "https://github.com/harvard-lil/scoop/releases/tag/${finalAttrs.version}";
+    license = with lib.licenses; [
+      # from `find . -name 'package.json' -print0 | xargs -0 jq '.license' -r | sort -u` in the source dir after npm install
+      bsd0
+      agpl3Plus
+      asl20
+      blueOak100
+      bsd2
+      bsd3
+      isc
+      mit
+      zlib
+      psfl
+    ];
     sourceProvenance = with lib.sourceTypes; [
       fromSource
       # we don't know whats in those npm deps without digging
       binaryBytecode
       binaryNativeCode
     ];
+    maintainers = [ lib.maintainers.shelvacu ];
     mainProgram = "scoop";
+    platforms = lib.platforms.all;
   };
 })
