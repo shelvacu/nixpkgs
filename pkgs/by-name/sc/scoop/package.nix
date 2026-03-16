@@ -24,10 +24,12 @@ buildNpmPackage (finalAttrs: {
     hash = "sha256-KcoTl2ehla6ALLrpAyfOqDioP5s3CGVfVhsj3Fbq6/Y=";
   };
 
-  patches = [ (fetchpatch {
-    url = "https://github.com/harvard-lil/scoop/pull/414/commits/4dc4ee6d4e6c3fa89cf5ec4c685178f1927ffa1f.patch";
-    hash = "sha256-zV7axS3zlD/hWwgZHTOkMLVak71giWy+J0iwZ3eSKL4=";
-  }) ];
+  patches = [
+    (fetchpatch {
+      url = "https://github.com/harvard-lil/scoop/pull/414/commits/4dc4ee6d4e6c3fa89cf5ec4c685178f1927ffa1f.patch";
+      hash = "sha256-zV7axS3zlD/hWwgZHTOkMLVak71giWy+J0iwZ3eSKL4=";
+    })
+  ];
 
   # scoop doesn't work on node 22+ https://github.com/harvard-lil/portal/issues/12
   nodejs = nodejs_20;
